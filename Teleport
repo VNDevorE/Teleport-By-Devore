@@ -1,0 +1,302 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local teleportTarget = nil
+
+-- Anti-Ban (Anti-Kick) Logic
+if getrawmetatable and setreadonly and newcclosure then
+    local gmt = getrawmetatable(game)
+    setreadonly(gmt, false)
+    local oldNamecall = gmt.__namecall
+
+    gmt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+
+        if not checkcaller() and tostring(method) == "Kick" and self == LocalPlayer then
+            print("Anti-Ban: Blocked a kick attempt!")
+            return nil
+        end
+
+        return oldNamecall(self, ...)
+    end)
+    setreadonly(gmt, true)
+else
+    warn("Anti-Ban: Executor does not support metatable hooking. This feature will be disabled.")
+end
+
+-- Create GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game.CoreGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 260, 0, 320)
+Frame.Position = UDim2.new(0.5, -130, 0.4, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Frame.BackgroundTransparency = 0.1
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = Frame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 2
+MainStroke.Color = Color3.fromRGB(45, 45, 45)
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Parent = Frame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Title.BackgroundTransparency = 1
+Title.Text = "   PLAYER TELEPORT"
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.Parent = Frame
+
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 200, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 255))
+})
+TitleGradient.Parent = Title
+
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -35, 0, 5)
+MinimizeButton.BackgroundTransparency = 1
+MinimizeButton.Text = "-"
+MinimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.TextSize = 20
+MinimizeButton.Parent = Frame
+
+local MaximizeButton = Instance.new("TextButton")
+MaximizeButton.Size = UDim2.new(0, 30, 0, 30)
+MaximizeButton.Position = UDim2.new(1, -35, 0, 5)
+MaximizeButton.BackgroundTransparency = 1
+MaximizeButton.Text = "□"
+MaximizeButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+MaximizeButton.Font = Enum.Font.GothamBold
+MaximizeButton.TextSize = 18
+MaximizeButton.Visible = false
+MaximizeButton.Parent = Frame
+
+-- Scrolling list
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -100)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 45)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ScrollingFrame.BackgroundTransparency = 0.5
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.ScrollBarThickness = 2
+ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 255)
+ScrollingFrame.Parent = Frame
+
+local ListCorner = Instance.new("UICorner")
+ListCorner.CornerRadius = UDim.new(0, 8)
+ListCorner.Parent = ScrollingFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollingFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 5)
+
+local UIPadding = Instance.new("UIPadding")
+UIPadding.PaddingTop = UDim.new(0, 5)
+UIPadding.PaddingLeft = UDim.new(0, 5)
+UIPadding.PaddingRight = UDim.new(0, 5)
+UIPadding.Parent = ScrollingFrame
+
+-- TP and Spectate Buttons Container
+local ButtonContainer = Instance.new("Frame")
+ButtonContainer.Size = UDim2.new(1, -20, 0, 35)
+ButtonContainer.Position = UDim2.new(0, 10, 1, -45)
+ButtonContainer.BackgroundTransparency = 1
+ButtonContainer.Parent = Frame
+
+-- TP Button
+local TPButton = Instance.new("TextButton")
+TPButton.Size = UDim2.new(0.65, -5, 1, 0)
+TPButton.Position = UDim2.new(0, 0, 0, 0)
+TPButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+TPButton.Text = "TELEPORT"
+TPButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+TPButton.Font = Enum.Font.GothamBold
+TPButton.TextSize = 12
+TPButton.AutoButtonColor = false
+TPButton.Parent = ButtonContainer
+
+local BTNCorner = Instance.new("UICorner")
+BTNCorner.CornerRadius = UDim.new(0, 8)
+BTNCorner.Parent = TPButton
+
+local BTNGradient = Instance.new("UIGradient")
+BTNGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 150, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 100, 200))
+})
+BTNGradient.Parent = TPButton
+
+-- Watch Button
+local WatchButton = Instance.new("TextButton")
+WatchButton.Size = UDim2.new(0.35, 0, 1, 0)
+WatchButton.Position = UDim2.new(0.65, 5, 0, 0)
+WatchButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+WatchButton.Text = "WATCH"
+WatchButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+WatchButton.Font = Enum.Font.GothamBold
+WatchButton.TextSize = 12
+WatchButton.AutoButtonColor = false
+WatchButton.Parent = ButtonContainer
+
+local WatchCorner = Instance.new("UICorner")
+WatchCorner.CornerRadius = UDim.new(0, 8)
+WatchCorner.Parent = WatchButton
+
+-- Hover effects
+TPButton.MouseEnter:Connect(function()
+    game:GetService("TweenService"):Create(TPButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+end)
+TPButton.MouseLeave:Connect(function()
+    game:GetService("TweenService"):Create(TPButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+end)
+
+WatchButton.MouseEnter:Connect(function()
+    game:GetService("TweenService"):Create(WatchButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+end)
+WatchButton.MouseLeave:Connect(function()
+    game:GetService("TweenService"):Create(WatchButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+end)
+
+-- Variables to store original size and spectate state
+local originalSize = Frame.Size
+local minimizedSize = UDim2.new(0, 260, 0, 40)
+local spectating = false
+local selectedPlayerObj = nil
+
+MinimizeButton.MouseButton1Click:Connect(function()
+    game:GetService("TweenService"):Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = minimizedSize}):Play()
+    ScrollingFrame.Visible = false
+    ButtonContainer.Visible = false
+    MinimizeButton.Visible = false
+    MaximizeButton.Visible = true
+end)
+
+MaximizeButton.MouseButton1Click:Connect(function()
+    game:GetService("TweenService"):Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = originalSize}):Play()
+    ScrollingFrame.Visible = true
+    ButtonContainer.Visible = true
+    MinimizeButton.Visible = true
+    MaximizeButton.Visible = false
+end)
+
+-- Update player list function
+local function updatePlayerList()
+    for _, child in pairs(ScrollingFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local PlayerButton = Instance.new("TextButton")
+            PlayerButton.Size = UDim2.new(1, 0, 0, 30)
+            PlayerButton.Text = player.Name
+            PlayerButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+            PlayerButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            PlayerButton.BackgroundTransparency = 0.5
+            PlayerButton.Font = Enum.Font.Gotham
+            PlayerButton.TextSize = 12
+            PlayerButton.Parent = ScrollingFrame
+            
+            local PBCorner = Instance.new("UICorner")
+            PBCorner.CornerRadius = UDim.new(0, 6)
+            PBCorner.Parent = PlayerButton
+
+            PlayerButton.MouseEnter:Connect(function()
+                PlayerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                PlayerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end)
+            PlayerButton.MouseLeave:Connect(function()
+                PlayerButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                PlayerButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+            end)
+            
+            PlayerButton.MouseButton1Click:Connect(function()
+                teleportTarget = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                selectedPlayerObj = player
+                TPButton.Text = "TELEPORT: " .. player.Name:upper()
+                WatchButton.Text = "WATCH"
+                spectating = false
+                workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+            end)
+        end
+    end
+    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+end
+
+-- Teleport function
+TPButton.MouseButton1Click:Connect(function()
+    if teleportTarget and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character:FindFirstChild("HumanoidRootPart").CFrame = teleportTarget.CFrame + Vector3.new(0, 3, 0)
+    end
+end)
+
+-- Spectate function
+WatchButton.MouseButton1Click:Connect(function()
+    if selectedPlayerObj and selectedPlayerObj.Character and selectedPlayerObj.Character:FindFirstChild("Humanoid") then
+        if spectating then
+            workspace.CurrentCamera.CameraSubject = LocalPlayer.Character:FindFirstChild("Humanoid")
+            WatchButton.Text = "WATCH"
+            spectating = false
+        else
+            workspace.CurrentCamera.CameraSubject = selectedPlayerObj.Character:FindFirstChild("Humanoid")
+            WatchButton.Text = "UNWATCH"
+            spectating = true
+        end
+    end
+end)
+
+-- Update list on player join/leave
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+updatePlayerList()
+
+-- Dragging the GUI
+local dragging, dragInput, dragStart, startPos
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+    end
+end)
+
+Title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+Title.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
