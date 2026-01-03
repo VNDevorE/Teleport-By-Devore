@@ -183,6 +183,57 @@ local originalSize = Frame.Size
 local minimizedSize = UDim2.new(0, 260, 0, 40)
 local spectating = false
 local selectedPlayerObj = nil
+local isOpen = true
+local uiTweening = false
+
+local function toggleUI()
+    if uiTweening then return end
+    uiTweening = true
+    
+    local TweenService = game:GetService("TweenService")
+    local targetSize = isOpen and UDim2.new(0, 0, 0, 0) or originalSize
+    local targetTransparency = isOpen and 1 or 0
+    local easingStyle = isOpen and Enum.EasingStyle.Quart or Enum.EasingStyle.Back
+    
+    if not isOpen then
+        Frame.Visible = true
+    end
+
+    local tween = TweenService:Create(Frame, TweenInfo.new(0.5, easingStyle, Enum.EasingDirection.Out), {
+        Size = targetSize,
+        BackgroundTransparency = targetTransparency + 0.1 -- Keep base transparency
+    })
+    
+    -- Animate all children transparency if possible
+    for _, child in pairs(Frame:GetDescendants()) do
+        if child:IsA("TextLabel") or child:IsA("TextButton") then
+            TweenService:Create(child, TweenInfo.new(0.3), {TextTransparency = targetTransparency}):Play()
+        end
+        if child:IsA("Frame") or child:IsA("ScrollingFrame") then
+            local baseTransparency = child:IsA("ScrollingFrame") and 0.5 or 0
+            if child:IsA("Frame") and child.BackgroundTransparency == 1 then baseTransparency = 1 end
+            
+            TweenService:Create(child, TweenInfo.new(0.3), {
+                BackgroundTransparency = targetTransparency == 1 and 1 or baseTransparency
+            }):Play()
+        end
+    end
+
+    tween:Play()
+    tween.Completed:Connect(function()
+        isOpen = not isOpen
+        if not isOpen then
+            Frame.Visible = false
+        end
+        uiTweening = false
+    end)
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.End then
+        toggleUI()
+    end
+end)
 
 MinimizeButton.MouseButton1Click:Connect(function()
     game:GetService("TweenService"):Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = minimizedSize}):Play()
