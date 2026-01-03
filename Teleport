@@ -211,7 +211,7 @@ local function updatePlayerList()
         if player ~= LocalPlayer then
             local PlayerButton = Instance.new("TextButton")
             PlayerButton.Size = UDim2.new(1, 0, 0, 30)
-            PlayerButton.Text = player.Name
+            PlayerButton.Text = player.DisplayName
             PlayerButton.TextColor3 = Color3.fromRGB(200, 200, 200)
             PlayerButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             PlayerButton.BackgroundTransparency = 0.5
@@ -235,7 +235,7 @@ local function updatePlayerList()
             PlayerButton.MouseButton1Click:Connect(function()
                 teleportTarget = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
                 selectedPlayerObj = player
-                TPButton.Text = "TELEPORT: " .. player.Name:upper()
+                TPButton.Text = "TELEPORT: " .. player.DisplayName:upper()
                 WatchButton.Text = "WATCH"
                 spectating = false
                 workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
